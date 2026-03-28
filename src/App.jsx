@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { ChevronRight, Globe, Users, DollarSign, TrendingUp, MapPin, Target, Calculator, BookOpen, MessageSquare, BarChart3, Menu, X, Send, CheckCircle, ArrowRight } from "lucide-react";
+import { ChevronRight, Globe, Users, DollarSign, TrendingUp, MapPin, Target, Calculator, BookOpen, MessageSquare, BarChart3, Menu, X, CheckCircle, ArrowRight } from "lucide-react";
 
 const ACCENT = "#6B7FA3", DARK = "#0F1724", DARKER = "#0A1018", CARD = "#151F2E", BORDER = "#1E2D42", TEXT = "#C8D6E5", TEXT_DIM = "#6B7B8D", WHITE = "#F0F4F8", GREEN = "#10B981", RED = "#EF4444", AMBER = "#F59E0B", BLUE = "#3B82F6";
 
@@ -117,26 +117,9 @@ const TRIGGERS = [
 
 const [openKpi, setOpenKpi] = useState(null);
 const [openTrigger, setOpenTrigger] = useState(null);
-const [newsData, setNewsData] = useState({});
-const [newsLoading, setNewsLoading] = useState({});
 
-const fetchNews = async (key, query) => {
-  if (newsData[key]) return;
-  setNewsLoading(prev => ({...prev, [key]: true}));
-  try {
-    const r = await fetch("/api/claude", {
-      method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514", max_tokens: 800,
-        tools: [{type: "web_search_20250305", name: "web_search"}],
-        messages: [{role: "user", content: `Busque as 5 notícias mais recentes e relevantes sobre: ${query}. Para cada notícia, forneça: título, fonte, data e um resumo de 1 linha. Responda em português brasileiro. Formato: lista numerada simples.`}]
-      })
-    });
-    const d = await r.json();
-    const text = d.content?.filter(c => c.type === "text").map(c => c.text).join("\n") || "Não foi possível buscar notícias. Tente novamente.";
-    setNewsData(prev => ({...prev, [key]: text}));
-  } catch(e) { setNewsData(prev => ({...prev, [key]: "Erro de conexão. Verifique sua rede."})); }
-  setNewsLoading(prev => ({...prev, [key]: false}));
+const openPerplexity = (query) => {
+  window.open(`https://www.perplexity.ai/search?q=${encodeURIComponent(query)}&focus=internet`, '_blank');
 };
 
 return(<div>
@@ -173,14 +156,9 @@ return(<div>
 <div style={{fontSize:12,color:TEXT,lineHeight:1.6}}>{k.data}</div>
 </div>
 </div>
-<button onClick={()=>fetchNews("kpi_"+openKpi,k.search)} style={{padding:"8px 16px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
-<Globe size={13}/>{newsLoading["kpi_"+openKpi]?"Buscando notícias...":"Buscar notícias recentes sobre "+k.label}
+<button onClick={()=>openPerplexity(k.search)} style={{padding:"8px 16px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
+<Globe size={13}/>{"Pesquisar no Perplexity: "+k.label}
 </button>
-{newsData["kpi_"+openKpi]&&(
-<div style={{marginTop:12,padding:14,background:DARKER,borderRadius:8,border:`1px solid ${BORDER}`}}>
-<div style={{fontSize:11,color:ACCENT,fontWeight:600,marginBottom:6}}>NOTÍCIAS RECENTES (busca ao vivo)</div>
-<div style={{fontSize:12,color:TEXT,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{newsData["kpi_"+openKpi]}</div>
-</div>)}
 </div>)})()}
 
 {/* Charts */}
@@ -212,14 +190,9 @@ return(<div>
 {openTrigger===i&&(
 <div style={{padding:16,background:DARKER,borderRadius:"0 0 8px 8px",borderTop:"none",border:`1px solid ${ACCENT}`,borderTopColor:"transparent",marginTop:-4}}>
 <div style={{fontSize:12,color:TEXT,lineHeight:1.7,marginBottom:12}}>{t.detail}</div>
-<button onClick={()=>fetchNews("trigger_"+i,t.search)} style={{padding:"7px 14px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:5}}>
-<Globe size={12}/>{newsLoading["trigger_"+i]?"Buscando...":"Buscar notícias recentes"}
+<button onClick={()=>openPerplexity(t.search)} style={{padding:"7px 14px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:5}}>
+<Globe size={12}/>Pesquisar no Perplexity
 </button>
-{newsData["trigger_"+i]&&(
-<div style={{marginTop:10,padding:12,background:"rgba(15,23,36,0.8)",borderRadius:6,border:`1px solid ${BORDER}`}}>
-<div style={{fontSize:10,color:ACCENT,fontWeight:600,marginBottom:4}}>NOTÍCIAS (busca ao vivo via AI)</div>
-<div style={{fontSize:11,color:TEXT,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{newsData["trigger_"+i]}</div>
-</div>)}
 </div>)}
 </div>))}
 </div></div></div>)}
@@ -250,34 +223,9 @@ const SECTORS = [
 ];
 
 const [openSector, setOpenSector] = useState(null);
-const [sectorNews, setSectorNews] = useState({});
-const [sectorLoading, setSectorLoading] = useState({});
 
-const fetchSectorNews = async (idx) => {
-  const key = "sector_"+idx;
-  if (sectorNews[key]) return;
-  setSectorLoading(prev => ({...prev, [key]: true}));
-  try {
-    const r = await fetch("/api/claude", {
-      method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514", max_tokens: 1000,
-        tools: [{type: "web_search_20250305", name: "web_search"}],
-        messages: [{role: "user", content: `Busque informações atualizadas sobre: ${SECTORS[idx].search}
-
-Forneça em português brasileiro:
-1. AS 5 NOTÍCIAS MAIS RECENTES sobre este setor na América Latina (título, fonte, data, resumo de 1 linha)
-2. 3 EXEMPLOS DE EMPRESAS que fizeram market entry recente neste setor no Brasil ou LatAm (nome da empresa, país de origem, o que fizeram)
-3. VOLUME DE INVESTIMENTO estimado neste setor no Brasil nos últimos 12 meses
-
-Formato organizado com seções claras.`}]
-      })
-    });
-    const d = await r.json();
-    const text = d.content?.filter(c => c.type === "text").map(c => c.text).join("\n") || "Não foi possível buscar. Tente novamente.";
-    setSectorNews(prev => ({...prev, [key]: text}));
-  } catch(e) { setSectorNews(prev => ({...prev, [key]: "Erro de conexão."})); }
-  setSectorLoading(prev => ({...prev, [key]: false}));
+const openSectorPerplexity = (idx) => {
+  window.open(`https://www.perplexity.ai/search?q=${encodeURIComponent(SECTORS[idx].search)}&focus=internet`, '_blank');
 };
 
 return(<div>
@@ -315,18 +263,9 @@ return(<div>
 <div style={{fontSize:12,color:TEXT,lineHeight:1.7}}>{s.detail}</div>
 </div>
 
-<button onClick={()=>fetchSectorNews(openSector)} style={{padding:"10px 18px",background:s.c,border:"none",borderRadius:8,color:WHITE,cursor:"pointer",fontSize:12,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
-<Globe size={14}/>{sectorLoading[key]?"Buscando notícias, empresas e dados de investimento...":"Buscar notícias recentes, empresas e investimentos em "+s.s}
+<button onClick={()=>openSectorPerplexity(openSector)} style={{padding:"10px 18px",background:s.c,border:"none",borderRadius:8,color:WHITE,cursor:"pointer",fontSize:12,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
+<Globe size={14}/>{"Pesquisar no Perplexity: "+s.s}
 </button>
-
-{sectorNews[key]&&(
-<div style={{marginTop:14,padding:16,background:DARKER,borderRadius:8,border:`1px solid ${BORDER}`}}>
-<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-<div style={{fontSize:12,color:s.c,fontWeight:700}}>INTELLIGENCE AO VIVO — {s.s.toUpperCase()}</div>
-<div style={{fontSize:9,color:TEXT_DIM}}>Busca realizada via AI + Web Search</div>
-</div>
-<div style={{fontSize:12,color:TEXT,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{sectorNews[key]}</div>
-</div>)}
 </div>)})()}
 
 <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:12,padding:20}}>
@@ -557,26 +496,9 @@ const QUESTIONS = [
 
 const [openStep, setOpenStep] = useState(null);
 const [openQ, setOpenQ] = useState(null);
-const [pbNews, setPbNews] = useState({});
-const [pbLoading, setPbLoading] = useState({});
 
-const fetchPbNews = async (key, query) => {
-  if (pbNews[key]) return;
-  setPbLoading(prev => ({...prev, [key]: true}));
-  try {
-    const r = await fetch("/api/claude", {
-      method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514", max_tokens: 800,
-        tools: [{type: "web_search_20250305", name: "web_search"}],
-        messages: [{role: "user", content: `Busque as 5 notícias ou desenvolvimentos mais recentes sobre: ${query}. Para cada item: título, fonte, data e resumo de 1 linha. Responda em português brasileiro.`}]
-      })
-    });
-    const d = await r.json();
-    const text = d.content?.filter(c => c.type === "text").map(c => c.text).join("\n") || "Erro ao buscar.";
-    setPbNews(prev => ({...prev, [key]: text}));
-  } catch(e) { setPbNews(prev => ({...prev, [key]: "Erro de conexão."})); }
-  setPbLoading(prev => ({...prev, [key]: false}));
+const openPbPerplexity = (query) => {
+  window.open(`https://www.perplexity.ai/search?q=${encodeURIComponent(query)}&focus=internet`, '_blank');
 };
 
 return(<div>
@@ -604,14 +526,9 @@ return(<div>
 <div style={{fontSize:12,color:TEXT,lineHeight:1.7,fontStyle:"italic"}}>{x.tip}</div>
 </div>
 </div>
-<button onClick={()=>fetchPbNews("step_"+i,x.search)} style={{padding:"8px 16px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
-<Globe size={13}/>{pbLoading["step_"+i]?"Buscando...":"Buscar notícias recentes sobre "+x.l}
+<button onClick={()=>openPbPerplexity(x.search)} style={{padding:"8px 16px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
+<Globe size={13}/>Pesquisar no Perplexity
 </button>
-{pbNews["step_"+i]&&(
-<div style={{marginTop:10,padding:12,background:"rgba(15,23,36,0.8)",borderRadius:6,border:`1px solid ${BORDER}`}}>
-<div style={{fontSize:10,color:ACCENT,fontWeight:600,marginBottom:4}}>NOTÍCIAS AO VIVO</div>
-<div style={{fontSize:11,color:TEXT,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{pbNews["step_"+i]}</div>
-</div>)}
 </div>)}
 </div>))}
 </div>
@@ -637,14 +554,9 @@ return(<div>
 <div style={{fontSize:12,color:TEXT,lineHeight:1.7}}>{x.pitch}</div>
 </div>
 </div>
-<button onClick={()=>fetchPbNews("q_"+i,x.search)} style={{padding:"8px 16px",background:BLUE,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
-<Globe size={13}/>{pbLoading["q_"+i]?"Buscando...":"Buscar notícias e atualizações sobre este tema"}
+<button onClick={()=>openPbPerplexity(x.search)} style={{padding:"8px 16px",background:BLUE,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
+<Globe size={13}/>Pesquisar no Perplexity
 </button>
-{pbNews["q_"+i]&&(
-<div style={{marginTop:10,padding:12,background:"rgba(15,23,36,0.8)",borderRadius:6,border:`1px solid ${BORDER}`}}>
-<div style={{fontSize:10,color:BLUE,fontWeight:600,marginBottom:4}}>ATUALIZAÇÕES AO VIVO</div>
-<div style={{fontSize:11,color:TEXT,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{pbNews["q_"+i]}</div>
-</div>)}
 </div>)}
 </div>))}
 </div>
@@ -663,25 +575,62 @@ return(<div>
 <div style={{fontSize:11,color:TEXT,lineHeight:1.6}}>• F1: Market assessment, financial modeling<br/>• F3: EaaS — Country Manager, CFO, GTM<br/>• F4: Scale, M&A advisory<br/>• Success fee comercial sem restrição OAB</div>
 </div></div></div></div>)}
 
-function AI(){const[msgs,setMsgs]=useState([{role:"assistant",content:"Sou o assistente AI do COO Command Center. Tenho todos os dados da pesquisa EaaS — FDI, pricing, competidores, LatAm, buyers, métricas. Pergunte o que precisar."}]);
-const[input,setInput]=useState("");const[loading,setLoading]=useState(false);const ref=useRef(null);
-useEffect(()=>{ref.current?.scrollIntoView({behavior:"smooth"})},[msgs]);
-const ctx=`Você é o assistente AI do COO Command Center da Lex Experience. Responda em português brasileiro, direto e com dados.
-DADOS: IDP Brasil 2025: US$84,1B. 19.000 empresas com capital estrangeiro. Mercosul-UE vigência 1/mai/2026 (+R$37B PIB). LTV: R$300k-1M. Country Manager fracionado R$15-60k/mês. CFO R$8-70k/mês. Jurídico Tier1 R$1.500-5.000/h, Tier2 R$800-2.500/h. Setup Ltda estrangeiro R$15-50k, 60-90d. Margens: jurídico 60-75%, EaaS 50-65%, M&A 85-95%. Renovação 60-75%. Chile=mais fácil, Brasil=mais complexo. White space confirmado: nenhum concorrente integra Legal+EaaS. Modelo: dual entity (Soc.Advogados OAB + Consultoria Ltda). Canais: referral int'l #1, câmaras #2, LinkedIn ABM #3.`;
-const send=async()=>{if(!input.trim()||loading)return;const u=input.trim();setInput("");setMsgs(p=>[...p,{role:"user",content:u}]);setLoading(true);
-try{const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:ctx,messages:[{role:"user",content:u}]})});
-const d=await r.json();const t=d.content?.map(c=>c.text||"").join("\n")||"Erro. Tente novamente.";setMsgs(p=>[...p,{role:"assistant",content:t}]);}catch(e){setMsgs(p=>[...p,{role:"assistant",content:"Erro de conexão."}]);}setLoading(false);};
-return(<div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 120px)"}}>
-<Title sub="Pergunte sobre qualquer dado — FDI, pricing, competidores, regulatório">AI Assistant</Title>
-<div style={{flex:1,overflowY:"auto",background:CARD,border:`1px solid ${BORDER}`,borderRadius:12,padding:16,marginBottom:12}}>
-{msgs.map((m,i)=><div key={i} style={{marginBottom:12,display:"flex",flexDirection:"column",alignItems:m.role==="user"?"flex-end":"flex-start"}}>
-<div style={{maxWidth:"80%",padding:"10px 14px",borderRadius:10,background:m.role==="user"?ACCENT:DARKER,color:WHITE,fontSize:12,lineHeight:1.6,whiteSpace:"pre-wrap"}}>{m.content}</div></div>)}
-{loading&&<div style={{color:TEXT_DIM,fontSize:12}}>Processando...</div>}<div ref={ref}/>
+function AI(){
+const [input,setInput]=useState("");
+const QUICK = [
+  {label:"Market entry Brasil 2026",q:"market entry Brazil 2026 latest news companies",color:GREEN},
+  {label:"Nearshoring América Latina",q:"nearshoring Latin America supply chain 2025 2026",color:BLUE},
+  {label:"Acordo Mercosul-UE impacto",q:"Mercosul EU agreement trade impact 2026 sectors",color:AMBER},
+  {label:"Fractional executives Brasil",q:"fractional executive Brazil market 2025 2026 Chiefs Group",color:"#8B5CF6"},
+  {label:"Reforma tributária CBS IBS",q:"Brazil tax reform CBS IBS dual VAT 2026 impact companies",color:RED},
+  {label:"FDI Brasil setores",q:"foreign direct investment Brazil sectors 2025 2026",color:ACCENT},
+  {label:"IEEPA tarifas impacto LatAm",q:"IEEPA tariffs Latin America impact 2025 2026",color:"#F97316"},
+  {label:"Energia renovável investimento BR",q:"renewable energy investment Brazil 2025 2026 companies",color:GREEN},
+  {label:"Fintech market entry Brasil",q:"fintech market entry Brazil 2025 2026 regulation",color:"#EC4899"},
+  {label:"Honorários advocacia Brasil",q:"law firm fees Brazil hourly rate Chambers Legal 500 2025",color:ACCENT},
+];
+const search = (q) => window.open(`https://www.perplexity.ai/search?q=${encodeURIComponent(q)}&focus=internet`,'_blank');
+const searchCustom = () => { if(input.trim()) { search(input.trim()); setInput(""); } };
+
+return(<div>
+<Title sub="Pesquise qualquer tema no Perplexity — sua assinatura Pro, zero custo adicional">Central de Pesquisa</Title>
+
+<div style={{display:"flex",gap:6,marginBottom:20}}>
+<input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&searchCustom()} placeholder="Digite qualquer pergunta e pesquise no Perplexity..." style={{flex:1,padding:"12px 16px",background:CARD,border:`1px solid ${BORDER}`,borderRadius:8,color:WHITE,fontSize:13,outline:"none"}}/>
+<button onClick={searchCustom} style={{padding:"12px 20px",background:ACCENT,border:"none",borderRadius:8,color:WHITE,cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontSize:13,fontWeight:600}}><Globe size={14}/>Pesquisar</button>
 </div>
-<div style={{display:"flex",gap:6}}>
-<input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Pergunte sobre market entry, pricing, concorrentes..." style={{flex:1,padding:"10px 14px",background:CARD,border:`1px solid ${BORDER}`,borderRadius:8,color:WHITE,fontSize:12,outline:"none"}}/>
-<button onClick={send} disabled={loading} style={{padding:"10px 16px",background:ACCENT,border:"none",borderRadius:8,color:WHITE,cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontSize:12}}><Send size={13}/>Enviar</button>
-</div></div>)}
+
+<div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:12,padding:20,marginBottom:20}}>
+<h3 style={{fontSize:13,color:TEXT_DIM,textTransform:"uppercase",letterSpacing:1,margin:"0 0 16px"}}>Pesquisas Rápidas — 1 clique, abre no Perplexity</h3>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}>
+{QUICK.map((q,i)=>(
+<button key={i} onClick={()=>search(q.q)} style={{padding:"12px 16px",background:DARKER,border:`1px solid ${BORDER}`,borderRadius:8,cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:10,transition:"all 0.15s"}}>
+<Globe size={14} color={q.color}/>
+<span style={{fontSize:12,color:WHITE,fontWeight:500}}>{q.label}</span>
+</button>
+))}
+</div>
+</div>
+
+<div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:12,padding:20}}>
+<h3 style={{fontSize:13,color:TEXT_DIM,textTransform:"uppercase",letterSpacing:1,margin:"0 0 16px"}}>Abrir ferramentas de pesquisa</h3>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:10}}>
+{[
+  {name:"Perplexity Pro",url:"https://www.perplexity.ai",desc:"Pesquisa com AI + fontes",color:"#20B8CD"},
+  {name:"Claude.ai",url:"https://claude.ai",desc:"Análise e síntese de dados",color:ACCENT},
+  {name:"Gemini",url:"https://gemini.google.com",desc:"Deep Research",color:"#4285F4"},
+  {name:"Chambers & Partners",url:"https://chambers.com/legal-guide/brazil-95",desc:"Rankings jurídicos Brasil",color:AMBER},
+  {name:"Legal 500 Brasil",url:"https://www.legal500.com/c/brazil/",desc:"Rankings e análises",color:GREEN},
+  {name:"BCB Setor Externo",url:"https://www.bcb.gov.br/estatisticas/estatisticassetorexterno",desc:"Dados IDP oficiais",color:BLUE},
+].map((t,i)=>(
+<a key={i} href={t.url} target="_blank" rel="noopener noreferrer" style={{padding:"14px 16px",background:DARKER,border:`1px solid ${BORDER}`,borderRadius:8,textDecoration:"none",display:"block",transition:"all 0.15s"}}>
+<div style={{fontSize:13,color:WHITE,fontWeight:600,marginBottom:3}}>{t.name}</div>
+<div style={{fontSize:10,color:TEXT_DIM}}>{t.desc}</div>
+</a>
+))}
+</div>
+</div>
+</div>)}
 
 const PAGES={overview:Overview,market:Market,buyers:Buyers,offers:Offers,competitors:Competitors,latam:Latam,metrics:Metrics,simulator:Simulator,playbook:Playbook,ai:AI};
 
