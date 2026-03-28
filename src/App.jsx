@@ -124,7 +124,7 @@ const fetchNews = async (key, query) => {
   if (newsData[key]) return;
   setNewsLoading(prev => ({...prev, [key]: true}));
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
+    const r = await fetch("/api/claude", {
       method: "POST", headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514", max_tokens: 800,
@@ -258,7 +258,7 @@ const fetchSectorNews = async (idx) => {
   if (sectorNews[key]) return;
   setSectorLoading(prev => ({...prev, [key]: true}));
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
+    const r = await fetch("/api/claude", {
       method: "POST", headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514", max_tokens: 1000,
@@ -564,7 +564,7 @@ const fetchPbNews = async (key, query) => {
   if (pbNews[key]) return;
   setPbLoading(prev => ({...prev, [key]: true}));
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
+    const r = await fetch("/api/claude", {
       method: "POST", headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514", max_tokens: 800,
@@ -669,7 +669,7 @@ useEffect(()=>{ref.current?.scrollIntoView({behavior:"smooth"})},[msgs]);
 const ctx=`Você é o assistente AI do COO Command Center da Lex Experience. Responda em português brasileiro, direto e com dados.
 DADOS: IDP Brasil 2025: US$84,1B. 19.000 empresas com capital estrangeiro. Mercosul-UE vigência 1/mai/2026 (+R$37B PIB). LTV: R$300k-1M. Country Manager fracionado R$15-60k/mês. CFO R$8-70k/mês. Jurídico Tier1 R$1.500-5.000/h, Tier2 R$800-2.500/h. Setup Ltda estrangeiro R$15-50k, 60-90d. Margens: jurídico 60-75%, EaaS 50-65%, M&A 85-95%. Renovação 60-75%. Chile=mais fácil, Brasil=mais complexo. White space confirmado: nenhum concorrente integra Legal+EaaS. Modelo: dual entity (Soc.Advogados OAB + Consultoria Ltda). Canais: referral int'l #1, câmaras #2, LinkedIn ABM #3.`;
 const send=async()=>{if(!input.trim()||loading)return;const u=input.trim();setInput("");setMsgs(p=>[...p,{role:"user",content:u}]);setLoading(true);
-try{const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:ctx,messages:[{role:"user",content:u}]})});
+try{const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:ctx,messages:[{role:"user",content:u}]})});
 const d=await r.json();const t=d.content?.map(c=>c.text||"").join("\n")||"Erro. Tente novamente.";setMsgs(p=>[...p,{role:"assistant",content:t}]);}catch(e){setMsgs(p=>[...p,{role:"assistant",content:"Erro de conexão."}]);}setLoading(false);};
 return(<div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 120px)"}}>
 <Title sub="Pergunte sobre qualquer dado — FDI, pricing, competidores, regulatório">AI Assistant</Title>
@@ -692,7 +692,7 @@ return(<>
 <div style={{width:sb?200:54,background:DARKER,borderRight:`1px solid ${BORDER}`,display:"flex",flexDirection:"column",transition:"width 0.2s",flexShrink:0,overflow:"hidden"}}>
 <div style={{padding:sb?"16px 14px":"16px 10px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:10,minHeight:56}}>
 <button onClick={()=>setSb(!sb)} style={{background:"none",border:"none",color:TEXT,cursor:"pointer",padding:2}}>{sb?<X size={16}/>:<Menu size={16}/>}</button>
-{sb&&<div><div style={{fontSize:14,fontWeight:700,color:WHITE,letterSpacing:2}}>LEX<span style={{color:ACCENT}}>PERIENCE</span></div><div style={{fontSize:8,color:TEXT_DIM,letterSpacing:1.5,textTransform:"uppercase"}}>COO Command Center</div></div>}
+{sb&&<div><img src="/logo.png" alt="Lex Experience" style={{height:28,marginBottom:4,filter:"brightness(1.8)"}}/><div style={{fontSize:8,color:TEXT_DIM,letterSpacing:1.5,textTransform:"uppercase"}}>COO Command Center</div></div>}
 </div>
 <nav style={{flex:1,padding:"10px 6px",overflowY:"auto"}}>{NAV.map(item=>{const Icon=item.icon;const a=page===item.id;return(
 <button key={item.id} onClick={()=>setPage(item.id)} style={{width:"100%",display:"flex",alignItems:"center",gap:8,padding:sb?"8px 10px":"8px",background:a?"rgba(107,127,163,0.15)":"transparent",border:"none",borderRadius:6,color:a?WHITE:TEXT_DIM,cursor:"pointer",fontSize:12,fontWeight:a?600:400,marginBottom:1,textAlign:"left",borderLeft:a?`3px solid ${ACCENT}`:"3px solid transparent",justifyContent:sb?"flex-start":"center"}}>
