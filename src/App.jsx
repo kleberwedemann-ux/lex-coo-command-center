@@ -4,6 +4,38 @@ import { ChevronRight, Globe, Users, DollarSign, TrendingUp, MapPin, Target, Cal
 
 const ACCENT = "#6B7FA3", DARK = "#0F1724", DARKER = "#0A1018", CARD = "#151F2E", BORDER = "#1E2D42", TEXT = "#C8D6E5", TEXT_DIM = "#6B7B8D", WHITE = "#F0F4F8", GREEN = "#10B981", RED = "#EF4444", AMBER = "#F59E0B", BLUE = "#3B82F6";
 
+function useGeminiSearch() {
+  const [results, setResults] = useState({});
+  const [loading, setLoading] = useState({});
+  const search = async (key, query, context) => {
+    if (results[key]) return;
+    setLoading(prev => ({...prev, [key]: true}));
+    try {
+      const r = await fetch("/api/search", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ query, context })
+      });
+      const d = await r.json();
+      setResults(prev => ({...prev, [key]: d.text || d.error || "Sem resultados."}));
+    } catch(e) { setResults(prev => ({...prev, [key]: "Erro de conexão. Verifique sua rede."})); }
+    setLoading(prev => ({...prev, [key]: false}));
+  };
+  return { results, loading, search };
+}
+
+function SearchResultBox({ text, color = ACCENT }) {
+  if (!text) return null;
+  return (
+    <div style={{marginTop:12,padding:16,background:DARKER,borderRadius:8,border:`1px solid ${color}30`}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <div style={{fontSize:11,color:color,fontWeight:700}}>INTELLIGENCE — POWERED BY GEMINI</div>
+        <div style={{fontSize:9,color:TEXT_DIM}}>Busca ao vivo com Google Search</div>
+      </div>
+      <div style={{fontSize:12,color:TEXT,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{text}</div>
+    </div>
+  );
+}
+
 const FDI_HIST = [{year:"2020",value:46},{year:"2021",value:46.4},{year:"2022",value:74.6},{year:"2023",value:62.4},{year:"2024",value:71.1},{year:"2025*",value:84.1},{year:"2026P",value:70}];
 const FDI_COUNTRY = [{country:"EUA",stock:244.7,color:"#3B82F6"},{country:"P. Baixos",stock:145.5,color:"#6366F1"},{country:"Luxemburgo",stock:79.2,color:"#8B5CF6"},{country:"França",stock:63.3,color:"#A855F7"},{country:"Espanha",stock:61,color:"#D946EF"},{country:"UK",stock:31,color:"#EC4899"},{country:"Japão",stock:27.8,color:"#F43F5E"},{country:"Alemanha",stock:21.9,color:"#FB923C"}];
 const FDI_SECTOR = [{sector:"Serv. Financeiros",value:222},{sector:"Petróleo & Gás",value:82},{sector:"Comércio",value:80},{sector:"Eletricidade",value:57},{sector:"Serv. Prof.",value:45},{sector:"Químicos",value:43},{sector:"Alimentos",value:41},{sector:"Telecom",value:32}];
@@ -117,10 +149,7 @@ const TRIGGERS = [
 
 const [openKpi, setOpenKpi] = useState(null);
 const [openTrigger, setOpenTrigger] = useState(null);
-
-const openPerplexity = (query) => {
-  window.open(`https://www.perplexity.ai/search?q=${encodeURIComponent(query)}&focus=internet`, '_blank');
-};
+const { results: newsResults, loading: newsLoading, search: searchNews } = useGeminiSearch();
 
 return(<div>
 <Title sub="Visão executiva — clique em qualquer card para aprofundar">Dashboard Estratégico</Title>
@@ -156,9 +185,10 @@ return(<div>
 <div style={{fontSize:12,color:TEXT,lineHeight:1.6}}>{k.data}</div>
 </div>
 </div>
-<button onClick={()=>openPerplexity(k.search)} style={{padding:"8px 16px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
-<Globe size={13}/>{"Pesquisar no Perplexity: "+k.label}
+<button onClick={()=>searchNews("kpi_"+openKpi,k.search,"KPI de market entry Brasil")} style={{padding:"8px 16px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
+<Globe size={13}/>{newsLoading["kpi_"+openKpi]?"Buscando inteligência...":"Buscar notícias e dados recentes"}
 </button>
+<SearchResultBox text={newsResults["kpi_"+openKpi]} color={k.color}/>
 </div>)})()}
 
 {/* Charts */}
@@ -190,9 +220,10 @@ return(<div>
 {openTrigger===i&&(
 <div style={{padding:16,background:DARKER,borderRadius:"0 0 8px 8px",borderTop:"none",border:`1px solid ${ACCENT}`,borderTopColor:"transparent",marginTop:-4}}>
 <div style={{fontSize:12,color:TEXT,lineHeight:1.7,marginBottom:12}}>{t.detail}</div>
-<button onClick={()=>openPerplexity(t.search)} style={{padding:"7px 14px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:5}}>
-<Globe size={12}/>Pesquisar no Perplexity
+<button onClick={()=>searchNews("trigger_"+i,t.search,"Macro trends market entry LatAm")} style={{padding:"7px 14px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:5}}>
+<Globe size={12}/>{newsLoading["trigger_"+i]?"Buscando...":"Buscar inteligência recente"}
 </button>
+<SearchResultBox text={newsResults["trigger_"+i]}/>
 </div>)}
 </div>))}
 </div></div></div>)}
@@ -223,10 +254,7 @@ const SECTORS = [
 ];
 
 const [openSector, setOpenSector] = useState(null);
-
-const openSectorPerplexity = (idx) => {
-  window.open(`https://www.perplexity.ai/search?q=${encodeURIComponent(SECTORS[idx].search)}&focus=internet`, '_blank');
-};
+const { results: sectorResults, loading: sectorLoading, search: searchSector } = useGeminiSearch();
 
 return(<div>
 <Title sub="FDI, setores ativos e Acordo Mercosul-UE — clique nos setores para deep dive + notícias ao vivo">Market Intelligence</Title>
@@ -263,9 +291,10 @@ return(<div>
 <div style={{fontSize:12,color:TEXT,lineHeight:1.7}}>{s.detail}</div>
 </div>
 
-<button onClick={()=>openSectorPerplexity(openSector)} style={{padding:"10px 18px",background:s.c,border:"none",borderRadius:8,color:WHITE,cursor:"pointer",fontSize:12,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
-<Globe size={14}/>{"Pesquisar no Perplexity: "+s.s}
+<button onClick={()=>searchSector("sector_"+openSector,s.search,"Setor "+s.s+" market entry América Latina")} style={{padding:"10px 18px",background:s.c,border:"none",borderRadius:8,color:WHITE,cursor:"pointer",fontSize:12,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
+<Globe size={14}/>{sectorLoading["sector_"+openSector]?"Buscando notícias e empresas...":"Buscar inteligência: "+s.s}
 </button>
+<SearchResultBox text={sectorResults["sector_"+openSector]} color={s.c}/>
 </div>)})()}
 
 <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:12,padding:20}}>
@@ -496,10 +525,7 @@ const QUESTIONS = [
 
 const [openStep, setOpenStep] = useState(null);
 const [openQ, setOpenQ] = useState(null);
-
-const openPbPerplexity = (query) => {
-  window.open(`https://www.perplexity.ai/search?q=${encodeURIComponent(query)}&focus=internet`, '_blank');
-};
+const { results: pbResults, loading: pbLoading, search: searchPb } = useGeminiSearch();
 
 return(<div>
 <Title sub="Clique em cada etapa para ver o sales pitch e buscar notícias ao vivo">Playbook de Vendas</Title>
@@ -526,9 +552,10 @@ return(<div>
 <div style={{fontSize:12,color:TEXT,lineHeight:1.7,fontStyle:"italic"}}>{x.tip}</div>
 </div>
 </div>
-<button onClick={()=>openPbPerplexity(x.search)} style={{padding:"8px 16px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
-<Globe size={13}/>Pesquisar no Perplexity
+<button onClick={()=>searchPb("step_"+i,x.search,"Canais de venda market entry")} style={{padding:"8px 16px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
+<Globe size={13}/>{pbLoading["step_"+i]?"Buscando...":"Buscar inteligência recente"}
 </button>
+<SearchResultBox text={pbResults["step_"+i]}/>
 </div>)}
 </div>))}
 </div>
@@ -554,9 +581,10 @@ return(<div>
 <div style={{fontSize:12,color:TEXT,lineHeight:1.7}}>{x.pitch}</div>
 </div>
 </div>
-<button onClick={()=>openPbPerplexity(x.search)} style={{padding:"8px 16px",background:BLUE,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
-<Globe size={13}/>Pesquisar no Perplexity
+<button onClick={()=>searchPb("q_"+i,x.search,"Perguntas de market entry Brasil")} style={{padding:"8px 16px",background:BLUE,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
+<Globe size={13}/>{pbLoading["q_"+i]?"Buscando...":"Buscar atualizações recentes"}
 </button>
+<SearchResultBox text={pbResults["q_"+i]} color={BLUE}/>
 </div>)}
 </div>))}
 </div>
@@ -577,6 +605,8 @@ return(<div>
 
 function AI(){
 const [input,setInput]=useState("");
+const [selectedQ, setSelectedQ] = useState(null);
+const { results: aiResults, loading: aiLoading, search: aiSearch } = useGeminiSearch();
 const QUICK = [
   {label:"Market entry Brasil 2026",q:"market entry Brazil 2026 latest news companies",color:GREEN},
   {label:"Nearshoring América Latina",q:"nearshoring Latin America supply chain 2025 2026",color:BLUE},
@@ -589,41 +619,56 @@ const QUICK = [
   {label:"Fintech market entry Brasil",q:"fintech market entry Brazil 2025 2026 regulation",color:"#EC4899"},
   {label:"Honorários advocacia Brasil",q:"law firm fees Brazil hourly rate Chambers Legal 500 2025",color:ACCENT},
 ];
-const search = (q) => window.open(`https://www.perplexity.ai/search?q=${encodeURIComponent(q)}&focus=internet`,'_blank');
-const searchCustom = () => { if(input.trim()) { search(input.trim()); setInput(""); } };
+const doSearch = (key, q) => { setSelectedQ(key); aiSearch(key, q, "Inteligência para Lex Experience market entry"); };
+const searchCustom = () => { if(input.trim()) { const key = "custom_"+Date.now(); doSearch(key, input.trim()); setInput(""); } };
 
 return(<div>
-<Title sub="Pesquise qualquer tema no Perplexity — sua assinatura Pro, zero custo adicional">Central de Pesquisa</Title>
+<Title sub="Pesquise qualquer tema — resultados aparecem aqui, powered by Gemini + Google Search (gratuito)">Central de Inteligência</Title>
 
 <div style={{display:"flex",gap:6,marginBottom:20}}>
-<input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&searchCustom()} placeholder="Digite qualquer pergunta e pesquise no Perplexity..." style={{flex:1,padding:"12px 16px",background:CARD,border:`1px solid ${BORDER}`,borderRadius:8,color:WHITE,fontSize:13,outline:"none"}}/>
-<button onClick={searchCustom} style={{padding:"12px 20px",background:ACCENT,border:"none",borderRadius:8,color:WHITE,cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontSize:13,fontWeight:600}}><Globe size={14}/>Pesquisar</button>
+<input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&searchCustom()} placeholder="Digite qualquer pergunta sobre market entry, FDI, concorrentes..." style={{flex:1,padding:"12px 16px",background:CARD,border:`1px solid ${BORDER}`,borderRadius:8,color:WHITE,fontSize:13,outline:"none"}}/>
+<button onClick={searchCustom} style={{padding:"12px 20px",background:ACCENT,border:"none",borderRadius:8,color:WHITE,cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontSize:13,fontWeight:600}}><Globe size={14}/>Buscar</button>
 </div>
 
+{selectedQ && (aiLoading[selectedQ] ? (
+<div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:12,padding:20,marginBottom:20,textAlign:"center"}}>
+<div style={{fontSize:13,color:ACCENT}}>Buscando inteligência com Gemini + Google Search...</div>
+</div>
+) : aiResults[selectedQ] ? (
+<div style={{background:CARD,border:`1px solid ${ACCENT}`,borderRadius:12,padding:20,marginBottom:20}}>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+<div style={{fontSize:13,color:ACCENT,fontWeight:700}}>RESULTADO — GEMINI + GOOGLE SEARCH</div>
+<div style={{fontSize:9,color:TEXT_DIM}}>Busca ao vivo, dados atualizados</div>
+</div>
+<div style={{fontSize:12,color:TEXT,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{aiResults[selectedQ]}</div>
+</div>
+) : null)}
+
 <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:12,padding:20,marginBottom:20}}>
-<h3 style={{fontSize:13,color:TEXT_DIM,textTransform:"uppercase",letterSpacing:1,margin:"0 0 16px"}}>Pesquisas Rápidas — 1 clique, abre no Perplexity</h3>
+<h3 style={{fontSize:13,color:TEXT_DIM,textTransform:"uppercase",letterSpacing:1,margin:"0 0 16px"}}>Pesquisas Rápidas — resultado dentro do dashboard</h3>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}>
 {QUICK.map((q,i)=>(
-<button key={i} onClick={()=>search(q.q)} style={{padding:"12px 16px",background:DARKER,border:`1px solid ${BORDER}`,borderRadius:8,cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:10,transition:"all 0.15s"}}>
+<button key={i} onClick={()=>doSearch("quick_"+i,q.q)} style={{padding:"12px 16px",background:aiResults["quick_"+i]?"rgba(107,127,163,0.15)":DARKER,border:`1px solid ${aiResults["quick_"+i]?ACCENT:BORDER}`,borderRadius:8,cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
 <Globe size={14} color={q.color}/>
 <span style={{fontSize:12,color:WHITE,fontWeight:500}}>{q.label}</span>
+{aiLoading["quick_"+i]&&<span style={{fontSize:9,color:ACCENT}}>...</span>}
 </button>
 ))}
 </div>
 </div>
 
 <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:12,padding:20}}>
-<h3 style={{fontSize:13,color:TEXT_DIM,textTransform:"uppercase",letterSpacing:1,margin:"0 0 16px"}}>Abrir ferramentas de pesquisa</h3>
+<h3 style={{fontSize:13,color:TEXT_DIM,textTransform:"uppercase",letterSpacing:1,margin:"0 0 16px"}}>Links diretos</h3>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:10}}>
 {[
-  {name:"Perplexity Pro",url:"https://www.perplexity.ai",desc:"Pesquisa com AI + fontes",color:"#20B8CD"},
-  {name:"Claude.ai",url:"https://claude.ai",desc:"Análise e síntese de dados",color:ACCENT},
+  {name:"Perplexity Pro",url:"https://www.perplexity.ai",desc:"Deep research com fontes",color:"#20B8CD"},
+  {name:"Claude.ai",url:"https://claude.ai",desc:"Análise e síntese",color:ACCENT},
   {name:"Gemini",url:"https://gemini.google.com",desc:"Deep Research",color:"#4285F4"},
   {name:"Chambers & Partners",url:"https://chambers.com/legal-guide/brazil-95",desc:"Rankings jurídicos Brasil",color:AMBER},
   {name:"Legal 500 Brasil",url:"https://www.legal500.com/c/brazil/",desc:"Rankings e análises",color:GREEN},
   {name:"BCB Setor Externo",url:"https://www.bcb.gov.br/estatisticas/estatisticassetorexterno",desc:"Dados IDP oficiais",color:BLUE},
 ].map((t,i)=>(
-<a key={i} href={t.url} target="_blank" rel="noopener noreferrer" style={{padding:"14px 16px",background:DARKER,border:`1px solid ${BORDER}`,borderRadius:8,textDecoration:"none",display:"block",transition:"all 0.15s"}}>
+<a key={i} href={t.url} target="_blank" rel="noopener noreferrer" style={{padding:"14px 16px",background:DARKER,border:`1px solid ${BORDER}`,borderRadius:8,textDecoration:"none",display:"block"}}>
 <div style={{fontSize:13,color:WHITE,fontWeight:600,marginBottom:3}}>{t.name}</div>
 <div style={{fontSize:10,color:TEXT_DIM}}>{t.desc}</div>
 </a>
