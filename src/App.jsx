@@ -4,34 +4,51 @@ import { ChevronRight, Globe, Users, DollarSign, TrendingUp, MapPin, Target, Cal
 
 const ACCENT = "#6B7FA3", DARK = "#0F1724", DARKER = "#0A1018", CARD = "#151F2E", BORDER = "#1E2D42", TEXT = "#C8D6E5", TEXT_DIM = "#6B7B8D", WHITE = "#F0F4F8", GREEN = "#10B981", RED = "#EF4444", AMBER = "#F59E0B", BLUE = "#3B82F6";
 
-function useGeminiSearch() {
+function useNewsSearch() {
   const [results, setResults] = useState({});
   const [loading, setLoading] = useState({});
-  const search = async (key, query, context) => {
+  const search = async (key, query) => {
     if (results[key]) return;
     setLoading(prev => ({...prev, [key]: true}));
     try {
-      const r = await fetch("/api/search", {
+      const r = await fetch("/api/news", {
         method: "POST", headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ query, context })
+        body: JSON.stringify({ query })
       });
       const d = await r.json();
-      setResults(prev => ({...prev, [key]: d.text || d.error || "Sem resultados."}));
-    } catch(e) { setResults(prev => ({...prev, [key]: "Erro de conexão. Verifique sua rede."})); }
+      setResults(prev => ({...prev, [key]: { items: d.items || [], query: d.query || query }}));
+    } catch(e) { setResults(prev => ({...prev, [key]: { items: [], query, error: true }})); }
     setLoading(prev => ({...prev, [key]: false}));
   };
   return { results, loading, search };
 }
 
-function SearchResultBox({ text, color = ACCENT }) {
-  if (!text) return null;
+function NewsResultBox({ data, color = ACCENT, searchQuery }) {
+  if (!data) return null;
+  const q = searchQuery || data.query || "";
   return (
     <div style={{marginTop:12,padding:16,background:DARKER,borderRadius:8,border:`1px solid ${color}30`}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <div style={{fontSize:11,color:color,fontWeight:700}}>INTELLIGENCE — POWERED BY GEMINI</div>
-        <div style={{fontSize:9,color:TEXT_DIM}}>Busca ao vivo com Google Search</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <div style={{fontSize:11,color:color,fontWeight:700}}>📰 NOTÍCIAS RECENTES</div>
+        <div style={{fontSize:9,color:TEXT_DIM}}>via Google News RSS</div>
       </div>
-      <div style={{fontSize:12,color:TEXT,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{text}</div>
+      {data.error ? (
+        <div style={{fontSize:12,color:RED}}>Erro ao buscar notícias. Tente novamente.</div>
+      ) : data.items.length === 0 ? (
+        <div style={{fontSize:12,color:TEXT_DIM}}>Nenhuma notícia encontrada para esta busca.</div>
+      ) : (
+        <div>
+          {data.items.map((item, i) => (
+            <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" style={{display:"block",padding:"8px 0",borderBottom:i<data.items.length-1?`1px solid ${BORDER}`:"none",textDecoration:"none"}}>
+              <div style={{fontSize:12,color:WHITE,fontWeight:500,lineHeight:1.4,marginBottom:3}}>{item.title}</div>
+              <div style={{fontSize:10,color:TEXT_DIM}}>{item.source}{item.date ? ` • ${item.date}` : ""}</div>
+            </a>
+          ))}
+        </div>
+      )}
+      <a href={`https://www.perplexity.ai/search?q=${encodeURIComponent(q)}&focus=internet`} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,marginTop:12,padding:"8px 14px",background:`${color}20`,border:`1px solid ${color}40`,borderRadius:6,color:color,fontSize:11,fontWeight:600,textDecoration:"none"}}>
+        <Globe size={12}/>Aprofundar no Perplexity
+      </a>
     </div>
   );
 }
@@ -149,7 +166,7 @@ const TRIGGERS = [
 
 const [openKpi, setOpenKpi] = useState(null);
 const [openTrigger, setOpenTrigger] = useState(null);
-const { results: newsResults, loading: newsLoading, search: searchNews } = useGeminiSearch();
+const { results: newsResults, loading: newsLoading, search: searchNews } = useNewsSearch();
 
 return(<div>
 <Title sub="Visão executiva — clique em qualquer card para aprofundar">Dashboard Estratégico</Title>
@@ -185,10 +202,10 @@ return(<div>
 <div style={{fontSize:12,color:TEXT,lineHeight:1.6}}>{k.data}</div>
 </div>
 </div>
-<button onClick={()=>searchNews("kpi_"+openKpi,k.search,"KPI de market entry Brasil")} style={{padding:"8px 16px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
+<button onClick={()=>searchNews("kpi_"+openKpi,k.search)} style={{padding:"8px 16px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
 <Globe size={13}/>{newsLoading["kpi_"+openKpi]?"Buscando inteligência...":"Buscar notícias e dados recentes"}
 </button>
-<SearchResultBox text={newsResults["kpi_"+openKpi]} color={k.color}/>
+<NewsResultBox data={newsResults["kpi_"+openKpi]} color={k.color}/>
 </div>)})()}
 
 {/* Charts */}
@@ -220,10 +237,10 @@ return(<div>
 {openTrigger===i&&(
 <div style={{padding:16,background:DARKER,borderRadius:"0 0 8px 8px",borderTop:"none",border:`1px solid ${ACCENT}`,borderTopColor:"transparent",marginTop:-4}}>
 <div style={{fontSize:12,color:TEXT,lineHeight:1.7,marginBottom:12}}>{t.detail}</div>
-<button onClick={()=>searchNews("trigger_"+i,t.search,"Macro trends market entry LatAm")} style={{padding:"7px 14px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:5}}>
+<button onClick={()=>searchNews("trigger_"+i,t.search)} style={{padding:"7px 14px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:5}}>
 <Globe size={12}/>{newsLoading["trigger_"+i]?"Buscando...":"Buscar inteligência recente"}
 </button>
-<SearchResultBox text={newsResults["trigger_"+i]}/>
+<NewsResultBox data={newsResults["trigger_"+i]}/>
 </div>)}
 </div>))}
 </div></div></div>)}
@@ -254,7 +271,7 @@ const SECTORS = [
 ];
 
 const [openSector, setOpenSector] = useState(null);
-const { results: sectorResults, loading: sectorLoading, search: searchSector } = useGeminiSearch();
+const { results: sectorResults, loading: sectorLoading, search: searchSector } = useNewsSearch();
 
 return(<div>
 <Title sub="FDI, setores ativos e Acordo Mercosul-UE — clique nos setores para deep dive + notícias ao vivo">Market Intelligence</Title>
@@ -291,10 +308,10 @@ return(<div>
 <div style={{fontSize:12,color:TEXT,lineHeight:1.7}}>{s.detail}</div>
 </div>
 
-<button onClick={()=>searchSector("sector_"+openSector,s.search,"Setor "+s.s+" market entry América Latina")} style={{padding:"10px 18px",background:s.c,border:"none",borderRadius:8,color:WHITE,cursor:"pointer",fontSize:12,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
+<button onClick={()=>searchSector("sector_"+openSector,s.search)} style={{padding:"10px 18px",background:s.c,border:"none",borderRadius:8,color:WHITE,cursor:"pointer",fontSize:12,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
 <Globe size={14}/>{sectorLoading["sector_"+openSector]?"Buscando notícias e empresas...":"Buscar inteligência: "+s.s}
 </button>
-<SearchResultBox text={sectorResults["sector_"+openSector]} color={s.c}/>
+<NewsResultBox data={sectorResults["sector_"+openSector]} color={s.c}/>
 </div>)})()}
 
 <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:12,padding:20}}>
@@ -525,7 +542,7 @@ const QUESTIONS = [
 
 const [openStep, setOpenStep] = useState(null);
 const [openQ, setOpenQ] = useState(null);
-const { results: pbResults, loading: pbLoading, search: searchPb } = useGeminiSearch();
+const { results: pbResults, loading: pbLoading, search: searchPb } = useNewsSearch();
 
 return(<div>
 <Title sub="Clique em cada etapa para ver o sales pitch e buscar notícias ao vivo">Playbook de Vendas</Title>
@@ -552,10 +569,10 @@ return(<div>
 <div style={{fontSize:12,color:TEXT,lineHeight:1.7,fontStyle:"italic"}}>{x.tip}</div>
 </div>
 </div>
-<button onClick={()=>searchPb("step_"+i,x.search,"Canais de venda market entry")} style={{padding:"8px 16px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
+<button onClick={()=>searchPb("step_"+i,x.search)} style={{padding:"8px 16px",background:ACCENT,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
 <Globe size={13}/>{pbLoading["step_"+i]?"Buscando...":"Buscar inteligência recente"}
 </button>
-<SearchResultBox text={pbResults["step_"+i]}/>
+<NewsResultBox data={pbResults["step_"+i]}/>
 </div>)}
 </div>))}
 </div>
@@ -581,10 +598,10 @@ return(<div>
 <div style={{fontSize:12,color:TEXT,lineHeight:1.7}}>{x.pitch}</div>
 </div>
 </div>
-<button onClick={()=>searchPb("q_"+i,x.search,"Perguntas de market entry Brasil")} style={{padding:"8px 16px",background:BLUE,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
+<button onClick={()=>searchPb("q_"+i,x.search)} style={{padding:"8px 16px",background:BLUE,border:"none",borderRadius:6,color:WHITE,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
 <Globe size={13}/>{pbLoading["q_"+i]?"Buscando...":"Buscar atualizações recentes"}
 </button>
-<SearchResultBox text={pbResults["q_"+i]} color={BLUE}/>
+<NewsResultBox data={pbResults["q_"+i]} color={BLUE}/>
 </div>)}
 </div>))}
 </div>
@@ -606,7 +623,7 @@ return(<div>
 function AI(){
 const [input,setInput]=useState("");
 const [selectedQ, setSelectedQ] = useState(null);
-const { results: aiResults, loading: aiLoading, search: aiSearch } = useGeminiSearch();
+const { results: aiResults, loading: aiLoading, search: aiSearch } = useNewsSearch();
 const QUICK = [
   {label:"Market entry Brasil 2026",q:"market entry Brazil 2026 latest news companies",color:GREEN},
   {label:"Nearshoring América Latina",q:"nearshoring Latin America supply chain 2025 2026",color:BLUE},
@@ -619,11 +636,11 @@ const QUICK = [
   {label:"Fintech market entry Brasil",q:"fintech market entry Brazil 2025 2026 regulation",color:"#EC4899"},
   {label:"Honorários advocacia Brasil",q:"law firm fees Brazil hourly rate Chambers Legal 500 2025",color:ACCENT},
 ];
-const doSearch = (key, q) => { setSelectedQ(key); aiSearch(key, q, "Inteligência para Lex Experience market entry"); };
+const doSearch = (key, q) => { setSelectedQ(key); aiSearch(key, q); };
 const searchCustom = () => { if(input.trim()) { const key = "custom_"+Date.now(); doSearch(key, input.trim()); setInput(""); } };
 
 return(<div>
-<Title sub="Pesquise qualquer tema — resultados aparecem aqui, powered by Gemini + Google Search (gratuito)">Central de Inteligência</Title>
+<Title sub="Pesquise qualquer tema — notícias aparecem aqui via Google News + aprofunde no Perplexity">Central de Inteligência</Title>
 
 <div style={{display:"flex",gap:6,marginBottom:20}}>
 <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&searchCustom()} placeholder="Digite qualquer pergunta sobre market entry, FDI, concorrentes..." style={{flex:1,padding:"12px 16px",background:CARD,border:`1px solid ${BORDER}`,borderRadius:8,color:WHITE,fontSize:13,outline:"none"}}/>
@@ -632,15 +649,11 @@ return(<div>
 
 {selectedQ && (aiLoading[selectedQ] ? (
 <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:12,padding:20,marginBottom:20,textAlign:"center"}}>
-<div style={{fontSize:13,color:ACCENT}}>Buscando inteligência com Gemini + Google Search...</div>
+<div style={{fontSize:13,color:ACCENT}}>Buscando notícias...</div>
 </div>
 ) : aiResults[selectedQ] ? (
 <div style={{background:CARD,border:`1px solid ${ACCENT}`,borderRadius:12,padding:20,marginBottom:20}}>
-<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-<div style={{fontSize:13,color:ACCENT,fontWeight:700}}>RESULTADO — GEMINI + GOOGLE SEARCH</div>
-<div style={{fontSize:9,color:TEXT_DIM}}>Busca ao vivo, dados atualizados</div>
-</div>
-<div style={{fontSize:12,color:TEXT,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{aiResults[selectedQ]}</div>
+<NewsResultBox data={aiResults[selectedQ]} color={ACCENT}/>
 </div>
 ) : null)}
 
