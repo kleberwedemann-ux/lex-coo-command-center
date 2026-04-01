@@ -11,41 +11,88 @@ function useNewsSearch() {
     if (results[key]) return;
     setLoading(prev => ({...prev, [key]: true}));
     try {
-      const r = await fetch("/api/news", {
-        method: "POST", headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ query })
-      });
-      const d = await r.json();
-      setResults(prev => ({...prev, [key]: { items: d.items || [], query: d.query || query }}));
-    } catch(e) { setResults(prev => ({...prev, [key]: { items: [], query, error: true }})); }
+      const [rssRes, gnewsRes] = await Promise.all([
+        fetch("/api/news", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ query }) }).then(r => r.json()).catch(() => ({ items: [] })),
+        fetch("/api/gnews", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ keywords: [query], maxPerKeyword: 5 }) }).then(r => r.json()).catch(() => ({ items: [] })),
+      ]);
+      setResults(prev => ({...prev, [key]: {
+        rss: { items: rssRes.items || [], query: rssRes.query || query },
+        gnews: { items: gnewsRes.items || [] },
+        query: rssRes.query || query,
+      }}));
+    } catch(e) { setResults(prev => ({...prev, [key]: { rss: { items: [], error: true }, gnews: { items: [] }, query, error: true }})); }
     setLoading(prev => ({...prev, [key]: false}));
   };
   return { results, loading, search };
 }
 
+const BADGE_STYLES = {
+  TRIGGER: { bg: "#EF444420", border: "#EF444460", color: "#EF4444", label: "TRIGGER" },
+  INTELLIGENCE: { bg: "#3B82F620", border: "#3B82F660", color: "#3B82F6", label: "INTELLIGENCE" },
+  MONITOR: { bg: "#6B7B8D20", border: "#6B7B8D60", color: "#6B7B8D", label: "MONITOR" },
+};
+
 function NewsResultBox({ data, color = ACCENT, searchQuery }) {
   if (!data) return null;
   const q = searchQuery || data.query || "";
+  const rss = data.rss || { items: [] };
+  const gnews = data.gnews || { items: [] };
+  const hasRss = rss.items && rss.items.length > 0;
+  const hasGnews = gnews.items && gnews.items.length > 0;
+
   return (
-    <div style={{marginTop:12,padding:16,background:DARKER,borderRadius:8,border:`1px solid ${color}30`}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-        <div style={{fontSize:11,color:color,fontWeight:700}}>📰 NOTÍCIAS RECENTES</div>
-        <div style={{fontSize:9,color:TEXT_DIM}}>via Google News RSS</div>
+    <div style={{marginTop:12}}>
+      {/* Google News RSS Section */}
+      <div style={{padding:16,background:DARKER,borderRadius:8,border:`1px solid ${color}30`,marginBottom:hasGnews?10:0}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{fontSize:11,color:color,fontWeight:700}}>📰 NOTÍCIAS RECENTES</div>
+          <div style={{fontSize:9,color:TEXT_DIM,background:`${TEXT_DIM}15`,padding:"2px 8px",borderRadius:4}}>via Google News RSS</div>
+        </div>
+        {rss.error ? (
+          <div style={{fontSize:12,color:RED}}>Erro ao buscar notícias. Tente novamente.</div>
+        ) : !hasRss ? (
+          <div style={{fontSize:12,color:TEXT_DIM}}>Nenhuma notícia encontrada via RSS.</div>
+        ) : (
+          <div>
+            {rss.items.map((item, i) => (
+              <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" style={{display:"block",padding:"8px 0",borderBottom:i<rss.items.length-1?`1px solid ${BORDER}`:"none",textDecoration:"none"}}>
+                <div style={{fontSize:12,color:WHITE,fontWeight:500,lineHeight:1.4,marginBottom:3}}>{item.title}</div>
+                <div style={{fontSize:10,color:TEXT_DIM}}>{item.source}{item.date ? ` • ${item.date}` : ""}</div>
+              </a>
+            ))}
+          </div>
+        )}
       </div>
-      {data.error ? (
-        <div style={{fontSize:12,color:RED}}>Erro ao buscar notícias. Tente novamente.</div>
-      ) : data.items.length === 0 ? (
-        <div style={{fontSize:12,color:TEXT_DIM}}>Nenhuma notícia encontrada para esta busca.</div>
-      ) : (
-        <div>
-          {data.items.map((item, i) => (
-            <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" style={{display:"block",padding:"8px 0",borderBottom:i<data.items.length-1?`1px solid ${BORDER}`:"none",textDecoration:"none"}}>
-              <div style={{fontSize:12,color:WHITE,fontWeight:500,lineHeight:1.4,marginBottom:3}}>{item.title}</div>
-              <div style={{fontSize:10,color:TEXT_DIM}}>{item.source}{item.date ? ` • ${item.date}` : ""}</div>
-            </a>
-          ))}
+
+      {/* GNews API Section */}
+      {(hasGnews || hasRss) && (
+        <div style={{padding:16,background:DARKER,borderRadius:8,border:`1px solid ${color}30`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={{fontSize:11,color:color,fontWeight:700}}>🔍 INTELIGÊNCIA GNEWS</div>
+            <div style={{fontSize:9,color:TEXT_DIM,background:`${TEXT_DIM}15`,padding:"2px 8px",borderRadius:4}}>via GNews API</div>
+          </div>
+          {!hasGnews ? (
+            <div style={{fontSize:12,color:TEXT_DIM}}>Nenhuma notícia encontrada via GNews API.</div>
+          ) : (
+            <div>
+              {gnews.items.map((item, i) => {
+                const badge = BADGE_STYLES[item.badge] || BADGE_STYLES.MONITOR;
+                return (
+                  <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" style={{display:"block",padding:"8px 0",borderBottom:i<gnews.items.length-1?`1px solid ${BORDER}`:"none",textDecoration:"none"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                      <span style={{fontSize:9,fontWeight:700,padding:"2px 6px",borderRadius:4,background:badge.bg,border:`1px solid ${badge.border}`,color:badge.color,letterSpacing:0.5}}>{badge.label}</span>
+                      <div style={{fontSize:12,color:WHITE,fontWeight:500,lineHeight:1.4}}>{item.title}</div>
+                    </div>
+                    {item.description && <div style={{fontSize:11,color:TEXT,lineHeight:1.4,marginBottom:3,marginLeft:0}}>{item.description.substring(0,120)}{item.description.length>120?"...":""}</div>}
+                    <div style={{fontSize:10,color:TEXT_DIM}}>{item.source}{item.date ? ` • ${item.date}` : ""}{item.keyword ? ` • 🏷 ${item.keyword}` : ""}</div>
+                  </a>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
+
       <a href={`https://www.perplexity.ai/search?q=${encodeURIComponent(q)}&focus=internet`} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,marginTop:12,padding:"8px 14px",background:`${color}20`,border:`1px solid ${color}40`,borderRadius:6,color:color,fontSize:11,fontWeight:600,textDecoration:"none"}}>
         <Globe size={12}/>Aprofundar no Perplexity
       </a>
